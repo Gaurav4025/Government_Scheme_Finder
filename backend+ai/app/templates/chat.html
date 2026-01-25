@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{{ title or 'Chat' }}</title>
+</head>
+<body>
+  <h1>{{ title or 'Chat' }}</h1>
+  <div id="conversations">
+    <ul>
+    {% for c in conversations %}
+      <li {% if c.id == active_id %}style="font-weight:bold"{% endif %}>{{ c.title }}</li>
+    {% endfor %}
+    </ul>
+  </div>
+
+  <div id="messages">
+    {% for m in messages %}
+      <div class="message {{ m.role }}">
+        <strong>{{ m.role }}:</strong>
+        <p>{{ m.content|nl2br }}</p>
+        {% if m.sources %}
+          <ul>
+            {% for s in m.sources %}
+              <li>{{ s.source }} (page: {{ s.page }})</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+
+  <form action="/c/{{ active_id }}" method="post">
+    <input type="text" name="prompt" placeholder="Enter prompt" />
+    <button type="submit">Send</button>
+  </form>
+</body>
+</html>

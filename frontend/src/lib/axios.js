@@ -1,10 +1,14 @@
 import axios from 'axios';
 
-const BASE_URL = 'https://notebooklm-clone-rbha.onrender.com/api/v1';
+// Use Vite environment variable if provided, otherwise default to localhost:8000
+const BASE_URL = import.meta?.env?.VITE_API_BASE || 'http://localhost:8000';
 
 export const axiosInstance = axios.create({
   baseURL: BASE_URL,
   withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
 // Request interceptor to add auth token
@@ -16,9 +20,7 @@ axiosInstance.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Response interceptor to handle auth errors
@@ -32,3 +34,5 @@ axiosInstance.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+
