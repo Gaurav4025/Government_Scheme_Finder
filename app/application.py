@@ -7,11 +7,11 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.staticfiles import StaticFiles
-from app.components.vector_store import load_vector_store
-from app.components.retriever import create_qa_chain
+# Vectorstore and QA chain are imported lazily inside startup to avoid heavy imports during
+# quick dev iterations (use MOCK_QA=true to skip model initialization entirely)
 
 
-from app.db import init_db
+from app.sqlite_db import init_db
 from app.repo import (
     list_conversations, create_conversation, get_conversation,
     get_messages, add_message, rename_conversation, delete_conversation
@@ -57,12 +57,24 @@ async def startup_event():
 
         init_db()
 
-        vector_store = load_vector_store()
-        if vector_store is None:
-            raise RuntimeError("Vector store failed to load; check your vectorstore files")
-        app.state.vector_store = vector_store
+        # Allow a mock QA chain during frontend/dev work to avoid heavy model imports
+        if os.getenv("MOCK_QA", "false").lower() in ("1", "true", "yes"):
+            class MockChain:
+                def invoke(self, payload):
+                    return {"answer": "This is a mock response (set MOCK_QA=false to use real models).", "context": []}
 
-        app.state.qa_chain = create_qa_chain(vector_store)
+            app.state.qa_chain = MockChain()
+        else:
+            # Lazily import heavy modules only when needed
+            from app.components.vector_store import load_vector_store
+            from app.components.retriever import create_qa_chain
+
+            vector_store = load_vector_store()
+            if vector_store is None:
+                raise RuntimeError("Vector store failed to load; check your vectorstore files")
+            app.state.vector_store = vector_store
+
+            app.state.qa_chain = create_qa_chain(vector_store)
 
         print("Application startup complete")
 
@@ -193,4 +205,16 @@ User Question:
         "response": answer,
         "sources": sources
     }
+
+
+# Include modular routers
+from app.auth.routes import router as auth_router
+from app.profile.routes import router as profile_router
+from app.documents.routes import router as documents_router
+from app.ai.routes import router as ai_router
+
+app.include_router(auth_router)
+app.include_router(profile_router)
+app.include_router(documents_router)
+app.include_router(ai_router)
 
