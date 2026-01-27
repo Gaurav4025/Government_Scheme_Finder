@@ -23,4 +23,5 @@ huggingface-hub
 
 easyocr
 react-markdown
+PyJWT-2.10.1
 

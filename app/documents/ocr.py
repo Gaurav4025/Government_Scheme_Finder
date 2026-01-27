@@ -1,6 +1,11 @@
 import easyocr
-reader = easyocr.Reader(["en"])
+from functools import lru_cache
 
-def extract_text(path):
-    result = reader.readtext(path)
-    return " ".join([r[1] for r in result])
+@lru_cache(maxsize=1)
+def get_reader():
+    return easyocr.Reader(["en"], gpu=False)
+
+def extract_text(image_path: str) -> str:
+    reader = get_reader()
+    results = reader.readtext(image_path)
+    return " ".join(text for (_, text, _) in results)

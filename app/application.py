@@ -7,8 +7,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.staticfiles import StaticFiles
-# Vectorstore and QA chain are imported lazily inside startup to avoid heavy imports during
-# quick dev iterations (use MOCK_QA=true to skip model initialization entirely)
+
 
 
 from app.sqlite_db import init_db
@@ -21,11 +20,16 @@ from app.components.retriever import create_qa_chain
 
 load_dotenv()
 
-app = FastAPI()
+app = FastAPI(
+    title="Smart Govt Scheme Finder",
+    description="AI-powered eligibility checker for Indian government schemes",
+    version="1.0.0"
+)
+
 
 from fastapi.middleware.cors import CORSMiddleware
 
-# Configure CORS: allow the frontend origin (defaults to Vite dev server)
+
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
 app.add_middleware(
     CORSMiddleware,
@@ -57,7 +61,6 @@ async def startup_event():
 
         init_db()
 
-        # Allow a mock QA chain during frontend/dev work to avoid heavy model imports
         if os.getenv("MOCK_QA", "false").lower() in ("1", "true", "yes"):
             class MockChain:
                 def invoke(self, payload):
@@ -65,7 +68,7 @@ async def startup_event():
 
             app.state.qa_chain = MockChain()
         else:
-            # Lazily import heavy modules only when needed
+    
             from app.components.vector_store import load_vector_store
             from app.components.retriever import create_qa_chain
 
@@ -207,7 +210,6 @@ User Question:
     }
 
 
-# Include modular routers
 from app.auth.routes import router as auth_router
 from app.profile.routes import router as profile_router
 from app.documents.routes import router as documents_router

@@ -5,7 +5,6 @@ from app.auth.deps import auth
 
 router = APIRouter()
 
-
 class BasicProfile(BaseModel):
     name: str
     dob: str
