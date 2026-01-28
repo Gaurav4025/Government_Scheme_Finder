@@ -84,3 +84,72 @@ def delete_conversation(conversation_id: int):
     conn.execute("DELETE FROM conversations WHERE id=?", (conversation_id,))
     conn.commit()
     conn.close()
+
+
+# User authentication functions
+def create_user(user_id: str, email: str, password_hash: str):
+    conn = get_conn()
+    try:
+        conn.execute("INSERT INTO users (id, email, password_hash) VALUES (?, ?, ?)", (user_id, email, password_hash))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        return None  # Email already exists
+    finally:
+        conn.close()
+    return user_id
+
+
+def get_user_by_email(email: str):
+    conn = get_conn()
+    row = conn.execute("SELECT id, email, password_hash FROM users WHERE email=?", (email,)).fetchone()
+    conn.close()
+    return row
+
+
+def get_user_by_id(user_id: str):
+    conn = get_conn()
+    row = conn.execute("SELECT id, email FROM users WHERE id=?", (user_id,)).fetchone()
+    conn.close()
+    return row
+
+
+# Profile functions
+def save_profile(user_id: str, name: str, dob: str, state: str, income: int, category: str):
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT OR REPLACE INTO profiles (user_id, name, dob, state, income, category, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    """, (user_id, name, dob, state, income, category))
+    conn.commit()
+    conn.close()
+
+
+def get_profile(user_id: str):
+    conn = get_conn()
+    row = conn.execute("SELECT name, dob, state, income, category FROM profiles WHERE user_id=?", (user_id,)).fetchone()
+    conn.close()
+    return row
+
+
+# Document functions
+def save_document(doc_id: str, user_id: str, doc_type: str, file_path: str, extracted_text: str):
+    conn = get_conn()
+    conn.execute("INSERT INTO documents (id, user_id, doc_type, file_path, extracted_text) VALUES (?, ?, ?, ?, ?)",
+                 (doc_id, user_id, doc_type, file_path, extracted_text))
+    conn.commit()
+    conn.close()
+
+
+def get_user_documents(user_id: str):
+    conn = get_conn()
+    rows = conn.execute("SELECT id, doc_type FROM documents WHERE user_id=?", (user_id,)).fetchall()
+    conn.close()
+    return rows
+
+
+def get_document_text(user_id: str):
+    conn = get_conn()
+    rows = conn.execute("SELECT extracted_text FROM documents WHERE user_id=?", (user_id,)).fetchall()
+    conn.close()
+    return " ".join([row["extracted_text"] for row in rows if row["extracted_text"]])

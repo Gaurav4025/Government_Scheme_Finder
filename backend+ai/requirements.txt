@@ -4,6 +4,8 @@ python-dotenv
 python-multipart
 itsdangerous
 jinja2
+PyJWT
+passlib[bcrypt]
 
 langchain
 langchain-core
@@ -22,5 +24,6 @@ pydantic
 huggingface-hub
 
 easyocr
+pillow
 react-markdown
 

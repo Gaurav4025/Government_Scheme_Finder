@@ -1,12 +1,21 @@
 import os
+import uuid
+import jwt
+from datetime import datetime, timedelta
+from passlib.context import CryptContext
+from PIL import Image
+import easyocr
+from pathlib import Path
 from dotenv import load_dotenv
 from markupsafe import Markup
 
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, HTTPException, Depends, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.staticfiles import StaticFiles
+from pydantic import BaseModel
 from app.components.vector_store import load_vector_store
 from app.components.retriever import create_qa_chain
 
@@ -14,7 +23,9 @@ from app.components.retriever import create_qa_chain
 from app.db import init_db
 from app.repo import (
     list_conversations, create_conversation, get_conversation,
-    get_messages, add_message, rename_conversation, delete_conversation
+    get_messages, add_message, rename_conversation, delete_conversation,
+    create_user, get_user_by_email, get_user_by_id,
+    save_profile, get_profile, save_document, get_user_documents, get_document_text
 )
 from app.components.retriever import create_qa_chain
 
@@ -193,4 +204,127 @@ User Question:
         "response": answer,
         "sources": sources
     }
+
+
+# Pydantic models for API
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class ProfileRequest(BaseModel):
+    name: str
+    dob: str
+    state: str
+    income: int
+    category: str
+
+class AskRequest(BaseModel):
+    question: str
+
+
+# Auth endpoints
+@app.post("/api/register")
+async def register(payload: RegisterRequest):
+    user = get_user_by_email(payload.email)
+    if user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    user_id = str(uuid.uuid4())
+    hashed_password = get_password_hash(payload.password)
+    if not create_user(user_id, payload.email, hashed_password):
+        raise HTTPException(status_code=400, detail="Registration failed")
+
+    access_token = create_access_token(data={"sub": user_id})
+    return {"token": access_token, "user_id": user_id}
+
+
+@app.post("/api/login")
+async def login(payload: LoginRequest):
+    user = get_user_by_email(payload.email)
+    if not user or not verify_password(payload.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    access_token = create_access_token(data={"sub": user["id"]})
+    return {"token": access_token, "user_id": user["id"]}
+
+
+# Profile endpoints
+@app.post("/api/profile/basic")
+async def save_basic_profile(payload: ProfileRequest, user_id: str = Depends(verify_token)):
+    save_profile(user_id, payload.name, payload.dob, payload.state, payload.income, payload.category)
+    return {"ok": True}
+
+
+@app.get("/api/profile")
+async def get_user_profile(user_id: str = Depends(verify_token)):
+    profile = get_profile(user_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    documents = get_user_documents(user_id)
+    return {
+        "name": profile["name"],
+        "state": profile["state"],
+        "category": profile["category"],
+        "documents": [{"doc_id": doc["id"], "doc_type": doc["doc_type"]} for doc in documents]
+    }
+
+
+# Document upload endpoint
+@app.post("/api/upload-document")
+async def upload_document(doc_type: str = Form(...), file: UploadFile = File(...), user_id: str = Depends(verify_token)):
+    # Save file
+    upload_dir = Path("data/uploads")
+    upload_dir.mkdir(exist_ok=True)
+    file_path = upload_dir / f"{user_id}_{uuid.uuid4()}_{file.filename}"
+    with open(file_path, "wb") as f:
+        f.write(await file.read())
+
+    # OCR processing
+    reader = easyocr.Reader(['en'])
+    result = reader.readtext(str(file_path))
+    extracted_text = " ".join([text for (_, text, _) in result])
+
+    # Save to DB
+    doc_id = str(uuid.uuid4())
+    save_document(doc_id, user_id, doc_type, str(file_path), extracted_text)
+
+    return {"ok": True, "doc_id": doc_id, "extracted_preview": extracted_text[:100] + "..."}
+
+
+# Ask AI endpoint
+@app.post("/api/ask")
+async def ask_ai(payload: AskRequest, user_id: str = Depends(verify_token)):
+    qa_chain = app.state.qa_chain
+
+    # Get user profile and documents
+    profile = get_profile(user_id)
+    doc_text = get_document_text(user_id)
+
+    combined_input = f"""
+User Profile:
+- Name: {profile['name'] if profile else 'Unknown'}
+- DOB: {profile['dob'] if profile else 'Unknown'}
+- State: {profile['state'] if profile else 'Unknown'}
+- Income: {profile['income'] if profile else 'Unknown'}
+- Category: {profile['category'] if profile else 'Unknown'}
+
+User Documents:
+{doc_text}
+
+User Question:
+{payload.question}
+"""
+
+    result = qa_chain.invoke({"input": combined_input})
+    docs = result.get("context", [])
+    answer = result.get("answer", "")
+
+    sources = list(set(doc.metadata.get("source", "Unknown") for doc in docs))
+
+    return {"response": answer, "sources": sources}
 
