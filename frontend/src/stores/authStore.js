@@ -1,12 +1,6 @@
 import { create } from 'zustand';
 import toast from 'react-hot-toast';
-
-// Dummy user for testing
-const DUMMY_USER = {
-  _id: '123456',
-  name: 'Test User',
-  email: 'test@example.com'
-};
+import axios from '../lib/axios';
 
 export const useAuthStore = create((set) => ({
   authUser: null,
@@ -18,14 +12,15 @@ export const useAuthStore = create((set) => ({
       set({ isCheckingAuth: true });
       // Check localStorage for existing auth
       const savedUser = localStorage.getItem('authUser');
-      if (savedUser) {
-        set({ 
+      const token = localStorage.getItem('authToken');
+      if (savedUser && token) {
+        set({
           authUser: JSON.parse(savedUser)
         });
       }
     } catch (error) {
       console.error("Check auth error:", error);
-      set({ 
+      set({
         authUser: null
       });
     } finally {
@@ -36,25 +31,26 @@ export const useAuthStore = create((set) => ({
   login: async (credentials) => {
     try {
       set({ isLoading: true });
-      // Dummy login - accept any credentials
+      const response = await axios.post('/api/login', credentials);
+      const { token, user_id } = response.data;
+
       const user = {
-        ...DUMMY_USER,
-        name: credentials.email.split('@')[0],
+        _id: user_id,
         email: credentials.email
       };
-      
+
       localStorage.setItem('authUser', JSON.stringify(user));
-      localStorage.setItem('authToken', 'dummy-token-123');
-      
-      set({ 
+      localStorage.setItem('authToken', token);
+
+      set({
         authUser: user
       });
-      
+
       toast.success("Login successful");
       return { success: true };
     } catch (error) {
       console.error("Login error:", error);
-      const message = error.message || "Login failed";
+      const message = error.response?.data?.detail || "Login failed";
       toast.error(message);
       return { success: false, error: message };
     } finally {
@@ -65,25 +61,26 @@ export const useAuthStore = create((set) => ({
   register: async (credentials) => {
     try {
       set({ isLoading: true });
-      // Dummy register - accept any credentials
+      const response = await axios.post('/api/register', credentials);
+      const { token, user_id } = response.data;
+
       const user = {
-        _id: Math.random().toString(36).substr(2, 9),
-        name: credentials.name,
+        _id: user_id,
         email: credentials.email
       };
-      
+
       localStorage.setItem('authUser', JSON.stringify(user));
-      localStorage.setItem('authToken', 'dummy-token-123');
-      
-      set({ 
+      localStorage.setItem('authToken', token);
+
+      set({
         authUser: user
       });
-      
+
       toast.success("Registration successful");
       return { success: true };
     } catch (error) {
       console.error("Register error:", error);
-      const message = error.message || "Registration failed";
+      const message = error.response?.data?.detail || "Registration failed";
       toast.error(message);
       return { success: false, error: message };
     } finally {

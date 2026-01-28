@@ -97,34 +97,41 @@ export const useSourceStore = create((set, get) => ({
     }
   },
 
-  addFileSource: async (file) => {
+  addFileSource: async (file, docType) => {
     try {
       set({ isUploading: true });
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Create dummy source from file
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('doc_type', docType);
+
+      const response = await axiosInstance.post('/api/upload-document', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      const { doc_id, extracted_preview } = response.data;
+
+      // Create source from response
       const newSource = {
-        _id: Math.random().toString(36).substr(2, 9),
-        title: file.name,
-        content: `File content from ${file.name}`,
-        summary: 'This is a summary of the uploaded file.',
-        type: 'file',
-        fileName: file.name,
-        fileSize: file.size,
+        _id: doc_id,
+        title: `Document: ${docType}`,
+        content: extracted_preview,
+        summary: 'Uploaded document with OCR',
+        type: 'document',
+        doc_type: docType,
         createdAt: new Date().toISOString()
       };
-      
+
       set(state => {
         const updatedSources = [newSource, ...state.sources];
-        localStorage.setItem('sources', JSON.stringify(updatedSources));
         return {
           sources: updatedSources,
           selectedSource: newSource
         };
       });
-      
+
       toast.success("File uploaded successfully");
       return { success: true, source: newSource };
     } catch (error) {
