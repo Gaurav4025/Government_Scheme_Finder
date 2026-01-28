@@ -1,5 +1,5 @@
 import json
-from app.db import get_conn
+from app.sqlite_db import get_conn
 
 
 def list_conversations():
