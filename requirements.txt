@@ -24,7 +24,10 @@ pydantic
 huggingface-hub
 
 easyocr
+uvicorn
+passlib
 pillow
 react-markdown
+jwt
 PyJWT-2.10.1
 

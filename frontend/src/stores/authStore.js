@@ -36,7 +36,8 @@ export const useAuthStore = create((set) => ({
 
       const user = {
         _id: user_id,
-        email: credentials.email
+        email: credentials.email,
+        profileCompleted:false
       };
 
       localStorage.setItem('authUser', JSON.stringify(user));
@@ -66,7 +67,10 @@ export const useAuthStore = create((set) => ({
 
       const user = {
         _id: user_id,
-        email: credentials.email
+        email: credentials.email,
+        profileCompleted: false
+
+
       };
 
       localStorage.setItem('authUser', JSON.stringify(user));

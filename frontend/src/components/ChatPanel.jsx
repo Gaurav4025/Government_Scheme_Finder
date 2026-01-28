@@ -1,38 +1,45 @@
+// src/components/ChatPanel.jsx
 import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Send, Bot, User, MessageSquare, Loader2 } from "lucide-react";
 import { useChatStore } from '../stores/chatStore';
-import { useSourceStore } from '../stores/sourceStore';
 import MessageContent from './MessageContent';
 
 export default function ChatPanel() {
-  const { selectedSource } = useSourceStore();
-  const { messages, isLoading, sendMessage, loadChatForSource } = useChatStore();
+  const { messages, isLoading, sendMessage } = useChatStore();
   const [inputMessage, setInputMessage] = useState('');
   const messagesEndRef = useRef(null);
 
-  // Load chat when source changes
-  useEffect(() => {
-    if (selectedSource) {
-      loadChatForSource(selectedSource._id);
-    }
-  }, [selectedSource, loadChatForSource]);
+  // 🔹 TEMPORARY USER DATA (replace later with real profile)
+  const userData = {
+    marks_12: 90,
+    income: 250000,
+    state: "Bihar",
+    category: "SC"
+  };
 
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   const handleSendMessage = async () => {
-    if (!inputMessage.trim() || !selectedSource || isLoading) return;
+    if (!inputMessage.trim() || isLoading) return;
 
-    const message = inputMessage.trim();
+    const question = inputMessage.trim();
     setInputMessage('');
-    
-    await sendMessage(message, selectedSource._id);
-  };
+
+  await sendMessage(
+  {
+    marks_12: 90,
+    income: 250000,
+    state: "Bihar",
+    category: "SC"
+  },
+  message
+);
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -41,31 +48,16 @@ export default function ChatPanel() {
     }
   };
 
-  if (!selectedSource) {
-    return (
-      <div className="w-[500px] bg-chat-bg border-l border-border h-full flex flex-col">
-        <div className="p-4 border-b border-border">
-          <h2 className="text-lg font-semibold text-foreground">Chat</h2>
-        </div>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-sm text-muted-foreground">
-              Select a source to start chatting
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="w-[500px] bg-chat-bg border-l border-border h-full flex flex-col">
+      
       {/* Header */}
       <div className="p-4 border-b border-border">
-        <h2 className="text-lg font-semibold text-foreground">Chat</h2>
-        <p className="text-sm text-muted-foreground truncate">
-          {selectedSource.title || `${selectedSource.type} source`}
+        <h2 className="text-lg font-semibold text-foreground">
+          Eligibility Chat
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Ask questions about government schemes
         </p>
       </div>
 
@@ -75,10 +67,10 @@ export default function ChatPanel() {
           <div className="text-center py-8">
             <Bot className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-sm text-muted-foreground mb-2">
-              Start a conversation about your source
+              Start by asking about your eligibility
             </p>
             <p className="text-xs text-muted-foreground">
-              Ask questions, request summaries, or explore the content
+              Example: "Which scholarships can I apply for?"
             </p>
           </div>
         )}
@@ -95,17 +87,17 @@ export default function ChatPanel() {
             >
               <div
                 className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                  message.role === 'user' 
-                    ? 'bg-primary text-primary-foreground' 
+                  message.role === 'user'
+                    ? 'bg-primary text-primary-foreground'
                     : 'bg-accent text-accent-foreground'
                 }`}
               >
-                {message.role === 'user' ? (
-                  <User className="w-4 h-4" />
-                ) : (
-                  <Bot className="w-4 h-4" />
-                )}
+                {message.role === 'user'
+                  ? <User className="w-4 h-4" />
+                  : <Bot className="w-4 h-4" />
+                }
               </div>
+
               <Card
                 className={`p-3 ${
                   message.role === 'user'
@@ -113,7 +105,7 @@ export default function ChatPanel() {
                     : 'bg-chat-assistant border-border'
                 }`}
               >
-                 <MessageContent content={message.content} />
+                <MessageContent content={message.content} />
               </Card>
             </div>
           </div>
@@ -128,7 +120,9 @@ export default function ChatPanel() {
               <Card className="p-3 bg-chat-assistant border-border">
                 <div className="flex items-center space-x-2">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm text-muted-foreground">Thinking...</span>
+                  <span className="text-sm text-muted-foreground">
+                    Thinking...
+                  </span>
                 </div>
               </Card>
             </div>
@@ -142,7 +136,7 @@ export default function ChatPanel() {
       <div className="p-4 border-t border-border">
         <div className="flex space-x-2">
           <Input
-            placeholder="Ask about this source..."
+            placeholder="Ask about your eligibility..."
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyPress={handleKeyPress}
@@ -161,4 +155,5 @@ export default function ChatPanel() {
       </div>
     </div>
   );
+  }
 }

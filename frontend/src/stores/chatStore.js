@@ -1,3 +1,4 @@
+
 import { create } from 'zustand';
 import toast from 'react-hot-toast';
 import axiosInstance from '../lib/axios';
@@ -7,26 +8,34 @@ export const useChatStore = create((set) => ({
   isLoading: false,
   sources: [],
 
+  /**
+   * userData = {
+   *   marks_12,
+   *   income,
+   *   state,
+   *   category
+   * }
+   */
   sendMessage: async (userData, question) => {
     try {
       set({ isLoading: true });
 
       // Add user message immediately
-      set(state => ({
+      set((state) => ({
         messages: [
           ...state.messages,
           { role: 'user', content: question }
         ]
       }));
 
-      // Call backend
+      // Call backend eligibility endpoint
       const res = await axiosInstance.post('/api/test-eligibility', {
         user_data: userData,
         question: question
       });
 
-      //Add assistant response
-      set(state => ({
+      // Add assistant response
+      set((state) => ({
         messages: [
           ...state.messages,
           {
@@ -34,27 +43,17 @@ export const useChatStore = create((set) => ({
             content: res.data.response
           }
         ],
-        sources: res.data.sources
+        sources: res.data.sources || []
       }));
 
       return { success: true };
 
     } catch (error) {
-      console.error(error);
+      console.error("Chat error:", error);
       toast.error("Failed to get eligibility response");
       return { success: false };
     } finally {
       set({ isLoading: false });
-    }
-  },
-
-  loadChatForSource: async (sourceId) => {
-    try {
-      const res = await axiosInstance.get(`/api/chat/${sourceId}`);
-      set({ messages: res.data.messages || [] });
-    } catch (error) {
-      console.error('Failed to load chat for source:', error);
-      toast.error('Failed to load chat history');
     }
   },
 

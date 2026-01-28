@@ -1,74 +1,65 @@
+
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
-import { Loader2, Brain } from "lucide-react";
+import { Loader2, Landmark } from "lucide-react";
 import { useAuthStore } from '../stores/authStore';
-import RegistrationForm from './RegistrationForm';
 
 export default function AuthForm() {
   const { login, register, isLoading } = useAuthStore();
-  const [showRegistrationForm, setShowRegistrationForm] = useState(false);
-  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
-  const [registerForm, setRegisterForm] = useState({ name: '', email: '', password: '' });
+
+  const [loginForm, setLoginForm] = useState({
+    email: '',
+    password: ''
+  });
+
+  const [registerForm, setRegisterForm] = useState({
+    email: '',
+    password: ''
+  });
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    const result = await login(loginForm);
-    if (result.success) {
-      // Auth store will handle the redirect
-    }
+    await login(loginForm);
   };
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    const result = await register(registerForm);
-    if (result.success) {
-      // Auth store will handle the redirect
-    }
+    await register(registerForm);
   };
-
-  const handleRegistrationComplete = (data) => {
-    // After registration form is complete, trigger the standard registration flow
-    setRegisterForm({
-      name: `${data.firstName} ${data.lastName}`,
-      email: data.email,
-      password: data.password
-    });
-    // Redirect to login or auto-login
-    setShowRegistrationForm(false);
-  };
-
-  // Show the detailed registration form when user clicks register
-  if (showRegistrationForm) {
-    return (
-      <div className="relative">
-        <button
-          onClick={() => setShowRegistrationForm(false)}
-          className="absolute top-4 left-4 text-muted-foreground hover:text-foreground z-10"
-        >
-          ← Back
-        </button>
-        <RegistrationForm onComplete={handleRegistrationComplete} />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md bg-card border-border">
         <CardHeader className="text-center">
           <div className="flex items-center justify-center space-x-2 mb-4">
-            <Brain className="w-8 h-8 text-primary" />
-            <span className="text-2xl font-bold text-foreground">Chithhi LM</span>
+            <Landmark className="w-8 h-8 text-primary" />
+            <span className="text-2xl font-bold text-foreground">
+              Smart Govt Scheme Finder
+            </span>
           </div>
-          <CardTitle className="text-foreground">Welcome</CardTitle>
+          <CardTitle className="text-foreground">
+            Welcome
+          </CardTitle>
           <CardDescription className="text-muted-foreground">
-            Sign in to your account or create a new one
+            Login or create a new account to check scheme eligibility
           </CardDescription>
         </CardHeader>
+
         <CardContent>
           <Tabs defaultValue="login" className="w-full">
             <TabsList className="grid w-full grid-cols-2 bg-muted">
@@ -76,32 +67,35 @@ export default function AuthForm() {
               <TabsTrigger value="register">Register</TabsTrigger>
             </TabsList>
 
+            {/* LOGIN */}
             <TabsContent value="login">
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="login-email">Email</Label>
+                  <Label>Email</Label>
                   <Input
-                    id="login-email"
                     type="email"
-                    placeholder="your@email.com"
+                    placeholder="user@example.com"
                     value={loginForm.email}
-                    onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                    onChange={(e) =>
+                      setLoginForm({ ...loginForm, email: e.target.value })
+                    }
                     required
-                    className="bg-input border-border"
                   />
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="login-password">Password</Label>
+                  <Label>Password</Label>
                   <Input
-                    id="login-password"
                     type="password"
                     placeholder="••••••••"
                     value={loginForm.password}
-                    onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                    onChange={(e) =>
+                      setLoginForm({ ...loginForm, password: e.target.value })
+                    }
                     required
-                    className="bg-input border-border"
                   />
                 </div>
+
                 <Button
                   type="submit"
                   className="w-full bg-primary hover:bg-primary/80"
@@ -113,25 +107,54 @@ export default function AuthForm() {
                       Signing in...
                     </>
                   ) : (
-                    'Sign In'
+                    'Login'
                   )}
                 </Button>
               </form>
             </TabsContent>
 
+            {/* REGISTER */}
             <TabsContent value="register">
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                setShowRegistrationForm(true);
-              }} className="space-y-4">
-                <div className="text-center py-4">
-                  <p className="text-muted-foreground mb-4">Click the button below to start the detailed registration process</p>
+              <form onSubmit={handleRegister} className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input
+                    type="email"
+                    placeholder="user@example.com"
+                    value={registerForm.email}
+                    onChange={(e) =>
+                      setRegisterForm({ ...registerForm, email: e.target.value })
+                    }
+                    required
+                  />
                 </div>
+
+                <div className="space-y-2">
+                  <Label>Password</Label>
+                  <Input
+                    type="password"
+                    placeholder="••••••••"
+                    value={registerForm.password}
+                    onChange={(e) =>
+                      setRegisterForm({ ...registerForm, password: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+
                 <Button
                   type="submit"
                   className="w-full bg-primary hover:bg-primary/80"
+                  disabled={isLoading}
                 >
-                  Start Registration
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Creating account...
+                    </>
+                  ) : (
+                    'Register'
+                  )}
                 </Button>
               </form>
             </TabsContent>

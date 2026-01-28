@@ -24,6 +24,10 @@ from app.repo import (
 )
 from app.components.retriever import create_qa_chain
 from fastapi.middleware.cors import CORSMiddleware
+from app.auth.routes import router as auth_router
+from app.profile.routes import router as profile_router
+from app.documents.routes import router as documents_router
+from app.ai.routes import router as ai_router
 
 
 load_dotenv()
@@ -216,6 +220,12 @@ User Question:
         "response": answer,
         "sources": sources
     }
+    
+app.include_router(auth_router)
+app.include_router(profile_router)
+app.include_router(documents_router)
+app.include_router(ai_router)
+    
 
 
 
