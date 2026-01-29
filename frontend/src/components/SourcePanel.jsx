@@ -82,9 +82,11 @@ export default function SourcePanel() {
       {/* Uploaded sources */}
       <div className="mt-6 space-y-2 flex-1 overflow-y-auto">
         {sources.map((s) => (
+
           <Card
             key={s._id}
-            className={`p-2 cursor-pointer ${
+            
+            className={`p-2 cursor-pointer flex items-center ${
               selectedSource?._id === s._id ? 'bg-accent' : ''
             }`}
             onClick={() => selectSource(s)}

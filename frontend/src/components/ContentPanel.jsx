@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { FileText, Link, Calendar, Sparkles } from "lucide-react";
+import { FileText, Link, Bot, Sparkles } from "lucide-react";
 import { useSourceStore } from "../stores/sourceStore";
 import { useState } from "react";
 import axios from "@/lib/axios";
@@ -7,7 +7,7 @@ import axios from "@/lib/axios";
 export default function ContentPanel() {
   const { selectedSource } = useSourceStore();
   const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState("");
+  const [messages, setMessages] = useState([]);
   const [asking, setAsking] = useState(false);
 
   if (!selectedSource) {
@@ -29,19 +29,27 @@ export default function ContentPanel() {
   const handleAsk = async () => {
     if (!question.trim()) return;
 
+    const userQuestion = question;
+    setQuestion(""); // Clear input immediately
+
+    // Add user message to chat
+    setMessages((prev) => [...prev, { type: "user", content: userQuestion }]);
+
     try {
       setAsking(true);
-      setAnswer("");
 
       const res = await axios.post("/api/ask", {
-        question,
+        question: userQuestion,
         source_id: selectedSource._id,
       });
 
-      setAnswer(res.data.response || "No response received");
+      const response = res.data.response || "No response received";
+      
+      // Add assistant message to chat
+      setMessages((prev) => [...prev, { type: "assistant", content: response }]);
     } catch (err) {
       console.error(err);
-      setAnswer("Failed to get response");
+      setMessages((prev) => [...prev, { type: "assistant", content: "Failed to get response" }]);
     } finally {
       setAsking(false);
     }
@@ -66,16 +74,17 @@ export default function ContentPanel() {
     });
 
   return (
-    <div className="flex-1 bg-background p-6 overflow-y-auto">
-      <div className="max-w-4xl mx-auto">
+    <div className="flex-1 bg-background h-full flex flex-col m-4 pb-4">
+      <div className="max-w-4xl mx-auto w-full flex flex-col h-full">
+
         {/* Source Header */}
-        <Card className="p-6 mb-6">
+        <Card className="p-6 mb-4">
           <div className="flex items-start space-x-4">
             <div className="p-3 bg-accent rounded-lg">
               {getSourceIcon(selectedSource.type)}
             </div>
             <div className="flex-1">
-              <h1 className="text-2xl font-bold mb-2">
+              <h1 className="text-2xl font-bold mb-1">
                 {selectedSource.title}
               </h1>
               <div className="text-sm text-muted-foreground flex gap-4">
@@ -86,46 +95,86 @@ export default function ContentPanel() {
           </div>
         </Card>
 
-        {/* Processing */}
-        {!selectedSource.summary && (
-          <Card className="p-6 mb-6 text-center text-muted-foreground">
-            <div className="flex items-center justify-center gap-2">
-              <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" />
-              Processing source...
+        {/* Chat Messages */}
+        <Card className="flex-1 p-4 overflow-y-auto space-y-4">
+          
+          {/* Initial Message */}
+          {messages.length === 0 && !asking && (
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center">
+                <Bot className="w-6 h-6 text-primary" />
+              </div>
+              <div className="bg-muted p-3 rounded-lg max-w-[80%]">
+                <p className="text-sm">
+                  Hi! I'm ready to answer questions about this document. What would you like to know?
+                </p>
+              </div>
             </div>
-          </Card>
-        )}
+          )}
 
-        {/* Ask Section */}
-        <Card className="p-6 mb-6">
-          <h2 className="text-lg font-semibold mb-3">
-            Ask about this document
-          </h2>
+          {/* Message History */}
+          {messages.map((msg, index) => (
+            <div key={index}>
+              {msg.type === "user" ? (
+                <div className="flex justify-end">
+                  <div className="bg-black text-white p-3 rounded-lg max-w-[80%]">
+                    <p className="text-sm">{msg.content}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center">
+                    <Bot className="w-6 h-6 text-primary" />
+                  </div>
+                  <div className="bg-muted p-3 rounded-lg max-w-[80%]">
+                    <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
 
-          <textarea
-            className="w-full border rounded p-3 mb-3"
-            rows={3}
-            placeholder="Ask a question about this document..."
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-          />
-
-          <button
-            onClick={handleAsk}
-            disabled={asking}
-            className="px-6 py-2 bg-black text-white rounded"
-          >
-            {asking ? "Asking..." : "Ask"}
-          </button>
+          {/* Loading State */}
+          {asking && (
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center">
+                <Bot className="w-6 h-6 text-primary" />
+              </div>
+              <div className="bg-muted p-3 rounded-lg">
+                <p className="text-sm text-muted-foreground">Thinking...</p>
+              </div>
+            </div>
+          )}
         </Card>
 
-        {/* Answer */}
-        <Card className="p-6">
-          <h3 className="font-semibold mb-2">Response</h3>
-          <p className="text-muted-foreground whitespace-pre-wrap">
-            {answer || "No response received"}
-          </p>
-        </Card>
+        {/* Input Box */}
+        <div className=" p-3 bg-background">
+          <div className="flex gap-3">
+            <textarea
+              className="flex-1 align-center border rounded-lg p-2 w-full h-15 resize-none"
+              rows={2}
+              placeholder="Ask a question about this document..."
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleAsk();
+                }
+              }}
+            />
+
+            <button
+              onClick={handleAsk}
+              disabled={asking || !question.trim()}
+              className="px-6 py-2 bg-black text-white rounded-lg disabled:opacity-50"
+            >
+              {asking ? "Asking..." : "Send"}
+            
+            </button>
+          </div>
+        </div>
+
       </div>
     </div>
   );
