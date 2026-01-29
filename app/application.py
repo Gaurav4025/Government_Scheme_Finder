@@ -1,6 +1,6 @@
 import os
 import uuid
-import jwt
+from jose import jwt
 from datetime import datetime, timedelta
 from passlib.context import CryptContext
 from PIL import Image
@@ -84,12 +84,8 @@ async def startup_event():
             from app.components.vector_store import load_vector_store
             from app.components.retriever import create_qa_chain
 
-            vector_store = load_vector_store()
-            if vector_store is None:
-                raise RuntimeError("Vector store failed to load; check your vectorstore files")
-            app.state.vector_store = vector_store
+            app.state.qa_chain = create_qa_chain()
 
-            app.state.qa_chain = create_qa_chain(vector_store)
 
         print("Application startup complete")
 

@@ -1,23 +1,18 @@
-from langchain_community.embeddings import HuggingFaceEmbeddings
-
+import boto3
+import os
+from langchain_aws import BedrockEmbeddings
+from app.config.config import BEDROCK_EMBEDDING_ID
 from app.common.logger import get_logger
-from app.common.custom_exception import CustomException
 
 logger = get_logger(__name__)
 
 def get_embedding_model():
-    
-    try:
-        logger.info("Initialising our Huggingface embedding model")
-        
-        model = HuggingFaceEmbeddings(model_name = "all-MiniLM-L6-v2")
-        
-        logger.info("Hugging face embedding model loader succesfully....")
-        
-        return model
-    
-    except Exception as e:
-        error_message = CustomException("Error occured while loading embedding model", e)
-        logger.error(str(error_message))
-        raise error_message
-        
+    client = boto3.client(
+        "bedrock-runtime",
+        region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1")
+    )
+
+    return BedrockEmbeddings(
+        client=client,
+        model_id=BEDROCK_EMBEDDING_ID or "amazon.titan-embed-text-v2:0",
+    )

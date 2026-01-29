@@ -6,7 +6,7 @@ load_dotenv()
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 HF_TOKEN = os.environ.get("HF_TOKEN")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+BEDROCK_EMBEDDING_ID = os.getenv("BEDROCK_EMBEDDING_ID")
 
 
 DB_FAISS_PATH = os.path.join(BASE_DIR, "vectorstore", "db_faiss")

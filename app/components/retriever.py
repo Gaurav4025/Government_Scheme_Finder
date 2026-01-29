@@ -1,5 +1,6 @@
 import traceback
 from typing import Optional
+from app.components.bedrock_retriever import get_bedrock_retriever
 
 from langchain_core.prompts import PromptTemplate
 from langchain.chains import create_retrieval_chain
@@ -49,17 +50,12 @@ FINAL ANSWER:
     )
 
 
-
-def create_qa_chain(vector_store):
+def create_qa_chain():
     try:
-        logger.info("Creating QA chain")
+        logger.info("Creating QA chain (Bedrock KB)")
 
         llm = load_llm()
-
-        retriever = vector_store.as_retriever(
-            search_kwargs={"k": 6}
-        )
-
+        retriever = get_bedrock_retriever()
         prompt = set_custom_prompt()
 
         doc_chain = create_stuff_documents_chain(
@@ -77,6 +73,7 @@ def create_qa_chain(vector_store):
 
     except Exception as e:
         logger.exception("Failed to create QA chain")
-        raise 
+        raise
+
 
 

@@ -10,9 +10,11 @@ passlib[bcrypt]
 langchain
 langchain-core
 langchain-community
-langchain-groq
-langchain-openai
-langchain-google-genai
+boto3
+langchain-aws
+awscli
+
+
 
 
 faiss-cpu

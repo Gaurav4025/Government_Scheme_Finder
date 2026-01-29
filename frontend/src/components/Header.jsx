@@ -13,7 +13,7 @@ export default function Header() {
     <header className="h-14 bg-card border-b border-border flex items-center justify-between px-6">
       <div className="flex items-center space-x-3">
         <Brain className="w-6 h-6 text-primary" />
-        <h1 className="text-xl font-bold text-foreground">Chithhi LM</h1>
+        <h1 className="text-xl font-bold text-foreground"> Smart Govt Scheme Finder</h1>
       </div>
       
       <div className="flex items-center space-x-4">

@@ -31,12 +31,10 @@ def load_vector_store():
         error_message = CustomException("Failed to load vectorstore" , e)
         logger.error(str(error_message))
 
-# Creating new vectorstore function
 def save_vector_store(text_chunks):
     try:
         if not text_chunks:
-            raise CustomException("No chunks were found..")
-        
+            raise CustomException("No chunks were found..")      
         logger.info("Generating your new vectorstore")
 
         embedding_model = get_embedding_model()

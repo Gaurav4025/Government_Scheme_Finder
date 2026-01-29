@@ -19,9 +19,14 @@ def process_and_store_pdfs():
         text_chunks = create_text_chunks(documents)
         logger.info(f"Chunks created: {len(text_chunks)}")
 
-        save_vector_store(text_chunks)
+        db = save_vector_store(text_chunks)
 
-        logger.info("Vectorstore created succesfully...")
+        if db:
+            logger.info("Vectorstore created succesfully...")
+        else:
+            # If save_vector_store failed it already logged an error; raise to
+            # ensure callers know the operation failed.
+            raise CustomException("Vectorstore creation returned no database object")
 
     except Exception as e:
         error_message = CustomException("Failed to create vectorstore", e)
