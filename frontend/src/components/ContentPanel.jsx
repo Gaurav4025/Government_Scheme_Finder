@@ -19,7 +19,7 @@ export default function ContentPanel() {
             Add a source to get started
           </h2>
           <p className="text-muted-foreground max-w-md">
-            Upload documents, paste text, or add web URLs to begin analyzing and chatting with your content.
+            Upload documents to begin analyzing and chatting with your content.
           </p>
         </div>
       </div>
