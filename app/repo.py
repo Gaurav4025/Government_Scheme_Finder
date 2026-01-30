@@ -1,155 +1,222 @@
 import json
-from app.sqlite_db import get_conn
+from app.db.mongo import profiles_col, chats_col, users_col, documents_col, db
+from typing import Optional
+import bcrypt
+from datetime import datetime
 
 
-def list_conversations():
-    conn = get_conn()
-    rows = conn.execute("""
-        SELECT id, title, created_at
-        FROM conversations
-        ORDER BY id DESC
-    """).fetchall()
-    conn.close()
-    return rows
+# ==================== CONVERSATIONS ====================
+
+async def list_conversations(user_id: str):
+    """List all conversations for a user"""
+    conversations = await chats_col.find(
+        {"user_id": user_id}
+    ).sort("created_at", -1).to_list(length=None)
+    
+    return [
+        {
+            "id": str(chat["_id"]),
+            "title": chat.get("title", "New Chat"),
+            "created_at": chat.get("created_at", "")
+        }
+        for chat in conversations
+    ]
 
 
-def create_conversation(title="New Chat"):
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("INSERT INTO conversations (title) VALUES (?)", (title,))
-    conn.commit()
-    cid = cur.lastrowid
-    conn.close()
-    return cid
+async def create_conversation(user_id: str, title="New Chat"):
+    """Create a new conversation"""
+    conversation = {
+        "user_id": user_id,
+        "title": title,
+        "created_at": datetime.utcnow().isoformat(),
+        "messages": []
+    }
+    result = await chats_col.insert_one(conversation)
+    return str(result.inserted_id)
 
 
-def get_conversation(conversation_id: int):
-    conn = get_conn()
-    row = conn.execute(
-        "SELECT id, title FROM conversations WHERE id=?",
-        (conversation_id,)
-    ).fetchone()
-    conn.close()
-    return row
-
-
-def get_messages(conversation_id: int):
-    conn = get_conn()
-    rows = conn.execute("""
-        SELECT role, content, sources_json, created_at
-        FROM messages
-        WHERE conversation_id=?
-        ORDER BY id ASC
-    """, (conversation_id,)).fetchall()
-    conn.close()
-
-    msgs = []
-    for r in rows:
-        sources = []
-        if r["sources_json"]:
-            try:
-                sources = json.loads(r["sources_json"])
-            except:
-                sources = []
-        msgs.append({
-            "role": r["role"],
-            "content": r["content"],
-            "sources": sources,
-            "created_at": r["created_at"]
-        })
-    return msgs
-
-
-def add_message(conversation_id: int, role: str, content: str, sources=None):
-    sources_json = json.dumps(sources or [])
-    conn = get_conn()
-    conn.execute("""
-        INSERT INTO messages (conversation_id, role, content, sources_json)
-        VALUES (?, ?, ?, ?)
-    """, (conversation_id, role, content, sources_json))
-    conn.commit()
-    conn.close()
-
-
-def rename_conversation(conversation_id: int, title: str):
-    conn = get_conn()
-    conn.execute("UPDATE conversations SET title=? WHERE id=?", (title, conversation_id))
-    conn.commit()
-    conn.close()
-
-
-def delete_conversation(conversation_id: int):
-    conn = get_conn()
-    conn.execute("DELETE FROM messages WHERE conversation_id=?", (conversation_id,))
-    conn.execute("DELETE FROM conversations WHERE id=?", (conversation_id,))
-    conn.commit()
-    conn.close()
-
-
-# User authentication functions
-def create_user(user_id: str, email: str, password_hash: str):
-    conn = get_conn()
+async def get_conversation(conversation_id: str):
+    """Get a single conversation by ID"""
+    from bson import ObjectId
+    
     try:
-        conn.execute("INSERT INTO users (id, email, password_hash) VALUES (?, ?, ?)", (user_id, email, password_hash))
-        conn.commit()
-    except sqlite3.IntegrityError:
-        return None  # Email already exists
-    finally:
-        conn.close()
-    return user_id
+        chat = await chats_col.find_one({"_id": ObjectId(conversation_id)})
+        if chat:
+            return {
+                "id": str(chat["_id"]),
+                "title": chat.get("title", "New Chat")
+            }
+    except:
+        pass
+    return None
 
 
-def get_user_by_email(email: str):
-    conn = get_conn()
-    row = conn.execute("SELECT id, email, password_hash FROM users WHERE email=?", (email,)).fetchone()
-    conn.close()
-    return row
+async def get_messages(conversation_id: str):
+    """Get all messages in a conversation"""
+    from bson import ObjectId
+    
+    try:
+        chat = await chats_col.find_one({"_id": ObjectId(conversation_id)})
+        if chat:
+            messages = chat.get("messages", [])
+            return [
+                {
+                    "role": msg.get("role"),
+                    "content": msg.get("content"),
+                    "sources": msg.get("sources", []),
+                    "created_at": msg.get("created_at", "")
+                }
+                for msg in messages
+            ]
+    except:
+        pass
+    return []
 
 
-def get_user_by_id(user_id: str):
-    conn = get_conn()
-    row = conn.execute("SELECT id, email FROM users WHERE id=?", (user_id,)).fetchone()
-    conn.close()
-    return row
+async def add_message(conversation_id: str, role: str, content: str, sources=None):
+    """Add a message to a conversation"""
+    from bson import ObjectId
+    
+    message = {
+        "role": role,
+        "content": content,
+        "sources": sources or [],
+        "created_at": datetime.utcnow().isoformat()
+    }
+    
+    try:
+        await chats_col.update_one(
+            {"_id": ObjectId(conversation_id)},
+            {"$push": {"messages": message}}
+        )
+    except Exception as e:
+        print(f"Error adding message: {e}")
 
 
-# Profile functions
-def save_profile(user_id: str, name: str, dob: str, state: str, income: int, category: str):
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("""
-        INSERT OR REPLACE INTO profiles (user_id, name, dob, state, income, category, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-    """, (user_id, name, dob, state, income, category))
-    conn.commit()
-    conn.close()
+async def rename_conversation(conversation_id: str, title: str):
+    """Rename a conversation"""
+    from bson import ObjectId
+    
+    try:
+        await chats_col.update_one(
+            {"_id": ObjectId(conversation_id)},
+            {"$set": {"title": title}}
+        )
+    except Exception as e:
+        print(f"Error renaming conversation: {e}")
 
 
-def get_profile(user_id: str):
-    conn = get_conn()
-    row = conn.execute("SELECT name, dob, state, income, category FROM profiles WHERE user_id=?", (user_id,)).fetchone()
-    conn.close()
-    return row
+async def delete_conversation(conversation_id: str):
+    """Delete a conversation"""
+    from bson import ObjectId
+    
+    try:
+        await chats_col.delete_one({"_id": ObjectId(conversation_id)})
+    except Exception as e:
+        print(f"Error deleting conversation: {e}")
 
 
-# Document functions
-def save_document(doc_id: str, user_id: str, doc_type: str, file_path: str, extracted_text: str):
-    conn = get_conn()
-    conn.execute("INSERT INTO documents (id, user_id, doc_type, file_path, extracted_text) VALUES (?, ?, ?, ?, ?)",
-                 (doc_id, user_id, doc_type, file_path, extracted_text))
-    conn.commit()
-    conn.close()
+# ==================== USERS ====================
+
+async def create_user(user_id: str, email: str, password_hash: str):
+    """Create a new user"""
+    try:
+        user = {
+            "user_id": user_id,
+            "email": email,
+            "password_hash": password_hash,
+            "created_at": datetime.utcnow().isoformat()
+        }
+        await users_col.insert_one(user)
+        return user_id
+    except Exception as e:
+        print(f"Error creating user: {e}")
+        return None
 
 
-def get_user_documents(user_id: str):
-    conn = get_conn()
-    rows = conn.execute("SELECT id, doc_type FROM documents WHERE user_id=?", (user_id,)).fetchall()
-    conn.close()
-    return rows
+async def get_user_by_email(email: str):
+    """Get user by email"""
+    user = await users_col.find_one({"email": email})
+    if user:
+        return {
+            "id": user.get("user_id"),
+            "email": user.get("email"),
+            "password_hash": user.get("password_hash")
+        }
+    return None
 
 
-def get_document_text(user_id: str):
-    conn = get_conn()
-    rows = conn.execute("SELECT extracted_text FROM documents WHERE user_id=?", (user_id,)).fetchall()
-    conn.close()
-    return " ".join([row["extracted_text"] for row in rows if row["extracted_text"]])
+async def get_user_by_id(user_id: str):
+    """Get user by ID"""
+    user = await users_col.find_one({"user_id": user_id})
+    if user:
+        return {
+            "id": user.get("user_id"),
+            "email": user.get("email")
+        }
+    return None
+
+
+# ==================== PROFILES ====================
+
+async def get_profile(user_id: str):
+    """
+    Get user profile from MongoDB profiles collection.
+    This includes both manually entered data and OCR-parsed data.
+    """
+    profile = await profiles_col.find_one({"user_id": user_id})
+    if profile:
+        profile.pop("_id", None)
+    return profile
+
+
+async def save_profile(user_id: str, name: str, dob: str, state: str, income: float, category: str):
+    """Save or update user profile in MongoDB"""
+    await profiles_col.update_one(
+        {"user_id": user_id},
+        {
+            "$set": {
+                "name": name,
+                "dob": dob,
+                "state": state,
+                "income": income,
+                "category": category,
+                "updated_at": datetime.utcnow().isoformat()
+            }
+        },
+        upsert=True
+    )
+
+
+# ==================== DOCUMENTS ====================
+
+async def save_document(doc_id: str, user_id: str, doc_type: str, file_path: str, extracted_text: str):
+    """Save document to MongoDB"""
+    doc = {
+        "doc_id": doc_id,
+        "user_id": user_id,
+        "doc_type": doc_type,
+        "file_path": file_path,
+        "extracted_text": extracted_text,
+        "created_at": datetime.utcnow().isoformat()
+    }
+    await documents_col.insert_one(doc)
+
+
+async def get_user_documents(user_id: str):
+    """Get all documents for a user"""
+    docs = await documents_col.find({"user_id": user_id}).to_list(length=None)
+    return [
+        {
+            "id": doc.get("doc_id"),
+            "doc_type": doc.get("doc_type"),
+            "extracted_text": doc.get("extracted_text", "")
+        }
+        for doc in docs
+    ]
+
+
+async def get_document_text(user_id: str):
+    """Get all extracted text from user documents"""
+    docs = await documents_col.find({"user_id": user_id}).to_list(length=None)
+    return " ".join([doc.get("extracted_text", "") for doc in docs if doc.get("extracted_text")])
