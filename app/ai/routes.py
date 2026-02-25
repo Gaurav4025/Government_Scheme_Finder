@@ -50,7 +50,7 @@ USER QUESTION:
     try:
         result = qa_chain.invoke({"input": combined_input})
     except Exception as e:
-        print(f"❌ QA invocation error: {str(e)}")
+        print(f" QA invocation error: {str(e)}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"QA invocation failed: {str(e)}")
